@@ -9,6 +9,7 @@ class Ship {
         this.rotationSpeed = 0.1;
         this.friction = 0.99;
         this.size = 20;
+        this.isThrusting = false;  // Track if thrust key is pressed
     }
 
     update(deltaTime) {
@@ -17,7 +18,8 @@ class Ship {
         if (this.game.keys['ArrowRight']) this.rotation += this.rotationSpeed;
 
         // Thrust
-        if (this.game.keys['ArrowUp']) {
+        this.isThrusting = this.game.keys['ArrowUp'];
+        if (this.isThrusting) {
             this.velocity.x += Math.cos(this.rotation) * this.thrust;
             this.velocity.y += Math.sin(this.rotation) * this.thrust;
         }
@@ -52,6 +54,17 @@ class Ship {
         ctx.lineTo(this.size, 0);
         ctx.stroke();
         ctx.closePath();
+
+        // Draw thruster
+        if (this.isThrusting) {
+            ctx.beginPath();
+            ctx.moveTo(-this.size/2, -this.size/4);
+            ctx.lineTo(-this.size, 0);
+            ctx.lineTo(-this.size/2, this.size/4);
+            ctx.strokeStyle = '#ff4400';
+            ctx.stroke();
+            ctx.closePath();
+        }
 
         ctx.restore();
     }
@@ -99,10 +112,6 @@ class Game {
         // Clear canvas
         this.ctx.fillStyle = '#000';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-        // Debug info
-        console.log('Rendering entities:', this.entities.length);
-        console.log('Ship position:', this.ship.x, this.ship.y);
 
         // Render all entities
         this.entities.forEach(entity => entity.render(this.ctx));
