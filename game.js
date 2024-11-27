@@ -220,6 +220,54 @@ class Asteroid {
         
         ctx.restore();
     }
+
+    containsPoint(point) {
+        // Transform point to asteroid's local space
+        const dx = point.x - this.x;
+        const dy = point.y - this.y;
+        
+        // Rotate point opposite to asteroid's rotation
+        const rotatedX = dx * Math.cos(-this.rotation) - dy * Math.sin(-this.rotation);
+        const rotatedY = dx * Math.sin(-this.rotation) + dy * Math.cos(-this.rotation);
+
+        // Ray casting algorithm
+        let inside = false;
+        for (let i = 0, j = this.vertices.length - 1; i < this.vertices.length; j = i++) {
+            const vi = this.vertices[i];
+            const vj = this.vertices[j];
+            
+            if (((vi.y > rotatedY) !== (vj.y > rotatedY)) &&
+                (rotatedX < (vj.x - vi.x) * (rotatedY - vi.y) / (vj.y - vi.y) + vi.x)) {
+                inside = !inside;
+            }
+        }
+        return inside;
+    }
+
+    split() {
+        if (this.size < 20) {  // Minimum size before destruction
+            return [];
+        }
+
+        // Create two smaller asteroids
+        const newSize = this.size / 2;
+        const newAsteroids = [];
+
+        for (let i = 0; i < 2; i++) {
+            // Add some random offset to position
+            const offset = 20;
+            const newX = this.x + (Math.random() - 0.5) * offset;
+            const newY = this.y + (Math.random() - 0.5) * offset;
+            
+            const asteroid = new Asteroid(this.game, newX, newY, newSize);
+            // Add some velocity based on the impact
+            asteroid.velocity.x = this.velocity.x + (Math.random() - 0.5) * 2;
+            asteroid.velocity.y = this.velocity.y + (Math.random() - 0.5) * 2;
+            newAsteroids.push(asteroid);
+        }
+
+        return newAsteroids;
+    }
 }
 
 class Game {
@@ -295,6 +343,29 @@ class Game {
             } else {
                 entity.update(deltaTime);
             }
+        });
+
+        // Check for collisions
+        const bullets = this.entities.filter(e => e instanceof Bullet);
+        const asteroids = this.entities.filter(e => e instanceof Asteroid);
+        
+        bullets.forEach(bullet => {
+            asteroids.forEach(asteroid => {
+                if (asteroid.containsPoint(bullet)) {
+                    // Remove the bullet
+                    this.entities = this.entities.filter(e => e !== bullet);
+                    
+                    // Remove the hit asteroid
+                    this.entities = this.entities.filter(e => e !== asteroid);
+                    
+                    // Add new asteroids from split
+                    const newAsteroids = asteroid.split();
+                    this.entities.push(...newAsteroids);
+                    
+                    // Update score
+                    this.score += 100;
+                }
+            });
         });
 
         // Then remove dead bullets
