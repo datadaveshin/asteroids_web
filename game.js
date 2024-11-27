@@ -10,12 +10,50 @@ class Ship {
         this.friction = 0.99;
         this.size = 20;
         this.isThrusting = false;  // Track if thrust key is pressed
+        this.bulletsRemaining = 5;
+        this.canShoot = true;  // Prevent holding space to rapid fire
+    }
+
+    shoot() {
+        if (this.bulletsRemaining > 0 && this.canShoot && this.game.keys[' ']) {
+            console.log('Ship position at shot:', this.x, this.y, 'rotation:', this.rotation);  // Debug
+            console.log('Shooting bullet!');  // Debug log
+            const bullet = new Bullet(
+                this.game,
+                this.x + Math.cos(this.rotation) * this.size,
+                this.y + Math.sin(this.rotation) * this.size,
+                this.rotation
+            );
+            console.log('Bullet created at:', bullet.x, bullet.y);  // Debug log
+            this.game.entities.push(bullet);
+            console.log('Total entities:', this.game.entities.length);  // Debug log
+            this.bulletsRemaining--;
+            this.canShoot = false;  // Prevent next shot until space is released
+        }
+        
+        // Reset shooting ability when space is released
+        if (!this.game.keys[' ']) {
+            this.canShoot = true;
+        }
+
+        // Reset bullets if all are used and no bullets are in flight
+        if (this.bulletsRemaining === 0 && !this.game.entities.some(e => e instanceof Bullet)) {
+            this.bulletsRemaining = 5;
+        }
     }
 
     update(deltaTime) {
         // Rotation
-        if (this.game.keys['ArrowLeft']) this.rotation -= this.rotationSpeed;
-        if (this.game.keys['ArrowRight']) this.rotation += this.rotationSpeed;
+        if (this.game.keys['ArrowLeft']) {
+            this.rotation -= this.rotationSpeed;
+            // Normalize rotation to stay between 0 and 2π
+            if (this.rotation < 0) this.rotation += Math.PI * 2;
+        }
+        if (this.game.keys['ArrowRight']) {
+            this.rotation += this.rotationSpeed;
+            // Normalize rotation to stay between 0 and 2π
+            if (this.rotation > Math.PI * 2) this.rotation -= Math.PI * 2;
+        }
 
         // Thrust
         this.isThrusting = this.game.keys['ArrowUp'];
@@ -23,6 +61,9 @@ class Ship {
             this.velocity.x += Math.cos(this.rotation) * this.thrust;
             this.velocity.y += Math.sin(this.rotation) * this.thrust;
         }
+
+        // Shooting
+        this.shoot();
 
         // Apply friction
         this.velocity.x *= this.friction;
@@ -71,6 +112,50 @@ class Ship {
     }
 }
 
+class Bullet {
+    constructor(game, x, y, rotation) {
+        this.game = game;
+        this.x = x;
+        this.y = y;
+        this.rotation = rotation;
+        this.speed = 10;
+        this.size = 1.5;
+        this.velocity = {
+            x: Math.cos(rotation) * this.speed,
+            y: Math.sin(rotation) * this.speed
+        };
+        this.lifespan = 50;
+        console.log('New bullet velocity:', this.velocity.x, this.velocity.y);  // Debug
+    }
+
+    update(deltaTime) {
+        // Move bullet
+        this.x += this.velocity.x;
+        this.y += this.velocity.y;
+        console.log('Bullet position:', this.x, this.y);  // Debug
+
+        // Wrap around screen
+        if (this.x < 0) this.x = this.game.canvas.width;
+        if (this.x > this.game.canvas.width) this.x = 0;
+        if (this.y < 0) this.y = this.game.canvas.height;
+        if (this.y > this.game.canvas.height) this.y = 0;
+
+        // Decrease lifespan
+        this.lifespan--;
+        return this.lifespan > 0;
+    }
+
+    render(ctx) {
+        // Draw a dot for the bullet
+        ctx.save();
+        ctx.fillStyle = '#fff';  // Changed from strokeStyle to fillStyle
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
 class Game {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
@@ -100,13 +185,40 @@ class Game {
 
     bindEvents() {
         // Keyboard controls
-        window.addEventListener('keydown', (e) => this.keys[e.key] = true);
-        window.addEventListener('keyup', (e) => this.keys[e.key] = false);
+        window.addEventListener('keydown', (e) => {
+            this.keys[e.key] = true;
+            if (e.key === ' ') {
+                console.log('Space pressed');  // Debug log
+            }
+        });
+        window.addEventListener('keyup', (e) => {
+            this.keys[e.key] = false;
+            if (e.key === ' ') {
+                console.log('Space released');  // Debug log
+            }
+        });
     }
 
     update(deltaTime) {
-        // Update game state
-        this.entities.forEach(entity => entity.update(deltaTime));
+        // First update all entities
+        this.entities.forEach(entity => {
+            if (entity instanceof Bullet) {
+                const alive = entity.update(deltaTime);
+                if (!alive) {
+                    console.log('Bullet died');  // Debug
+                }
+            } else {
+                entity.update(deltaTime);
+            }
+        });
+
+        // Then remove dead bullets
+        this.entities = this.entities.filter(entity => {
+            if (entity instanceof Bullet) {
+                return entity.lifespan > 0;
+            }
+            return true;
+        });
     }
 
     render() {
