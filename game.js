@@ -15,6 +15,7 @@ class Ship {
         this.isInvulnerable = false;
         this.invulnerableTime = 0;
         this.maxInvulnerableTime = 120;  // 2 seconds at 60fps
+        this.lives = 3;
     }
 
     shoot() {
@@ -160,6 +161,15 @@ class Ship {
 
     destroy() {
         this.lives--;
+        
+        // Create explosion at ship's position
+        this.game.particleSystem.createExplosion(
+            this.x, 
+            this.y, 
+            20,  // number of particles
+            '#fff'  // white particles
+        );
+        
         if (this.lives > 0) {
             this.respawn();
         }
@@ -338,6 +348,61 @@ class Asteroid {
     }
 }
 
+class Particle {
+    constructor(x, y, velocity, color, lifespan = 60) {
+        this.x = x;
+        this.y = y;
+        this.velocity = velocity;
+        this.color = color;
+        this.lifespan = lifespan;
+        this.originalLifespan = lifespan;
+    }
+
+    update() {
+        this.x += this.velocity.x;
+        this.y += this.velocity.y;
+        this.lifespan--;
+        return this.lifespan > 0;
+    }
+
+    render(ctx) {
+        const alpha = this.lifespan / this.originalLifespan;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+class ParticleSystem {
+    constructor() {
+        this.particles = [];
+    }
+
+    createExplosion(x, y, count, color) {
+        for (let i = 0; i < count; i++) {
+            const angle = (Math.PI * 2 / count) * i + Math.random() * 0.5;
+            const speed = 1 + Math.random() * 3;
+            const velocity = {
+                x: Math.cos(angle) * speed,
+                y: Math.sin(angle) * speed
+            };
+            this.particles.push(new Particle(x, y, velocity, color));
+        }
+    }
+
+    update() {
+        this.particles = this.particles.filter(particle => particle.update());
+    }
+
+    render(ctx) {
+        this.particles.forEach(particle => particle.render(ctx));
+    }
+}
+
 class Game {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
@@ -352,6 +417,9 @@ class Game {
         // Game state
         this.entities = [];
         this.keys = {};
+
+        // Create particle system
+        this.particleSystem = new ParticleSystem();
 
         // Create ship
         this.ship = new Ship(this, this.canvas.width / 2, this.canvas.height / 2);
@@ -414,6 +482,9 @@ class Game {
             }
         });
 
+        // Update particle system
+        this.particleSystem.update();
+
         // Check for collisions
         const bullets = this.entities.filter(e => e instanceof Bullet);
         const asteroids = this.entities.filter(e => e instanceof Asteroid);
@@ -459,13 +530,16 @@ class Game {
     }
 
     render() {
-        // Clear canvas
+        // Clear the canvas
         this.ctx.fillStyle = '#000';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         // Render all entities
         this.entities.forEach(entity => entity.render(this.ctx));
         
+        // Render particle system
+        this.particleSystem.render(this.ctx);
+
         // Update score and lives display
         document.getElementById('score').textContent = `Score: ${this.score}`;
         document.getElementById('lives').textContent = `Lives: ${this.ship.lives}`;
@@ -486,6 +560,9 @@ class Game {
         // Reset game state
         this.entities = [];
         this.score = 0;
+        
+        // Reset particle system
+        this.particleSystem = new ParticleSystem();
         
         // Create new ship
         this.ship = new Ship(this, this.canvas.width / 2, this.canvas.height / 2);
