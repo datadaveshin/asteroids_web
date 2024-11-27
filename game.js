@@ -48,20 +48,21 @@ class Ship {
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(this.size, 0);
-        ctx.lineTo(-this.size/2, -this.size/2);
-        ctx.lineTo(-this.size/2, this.size/2);
-        ctx.lineTo(this.size, 0);
+        ctx.moveTo(this.size, 0);  // Front of ship
+        ctx.lineTo(-this.size/2, -this.size/2);  // Top rear
+        ctx.lineTo(-this.size/3, 0);  // Notch
+        ctx.lineTo(-this.size/2, this.size/2);  // Bottom rear
+        ctx.lineTo(this.size, 0);  // Back to front
         ctx.stroke();
         ctx.closePath();
 
         // Draw thruster
         if (this.isThrusting) {
             ctx.beginPath();
-            ctx.moveTo(-this.size/2, -this.size/4);
-            ctx.lineTo(-this.size, 0);
-            ctx.lineTo(-this.size/2, this.size/4);
-            ctx.strokeStyle = '#ff4400';
+            ctx.moveTo(-this.size/3, -this.size/4);  // Top of thruster
+            ctx.lineTo(-this.size * 1.2, 0);  // Tip of flame
+            ctx.lineTo(-this.size/3, this.size/4);  // Bottom of thruster
+            ctx.strokeStyle = '#fff';  // Changed to white
             ctx.stroke();
             ctx.closePath();
         }
