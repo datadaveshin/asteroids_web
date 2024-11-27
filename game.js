@@ -164,8 +164,8 @@ class Game {
         this.lives = 3;
 
         // Set canvas size
-        this.canvas.width = 800;
-        this.canvas.height = 600;
+        this.canvas.width = 1280;
+        this.canvas.height = 960;
 
         // Game state
         this.entities = [];
