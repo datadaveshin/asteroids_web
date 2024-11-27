@@ -12,6 +12,9 @@ class Ship {
         this.isThrusting = false;  // Track if thrust key is pressed
         this.bulletsRemaining = 5;
         this.canShoot = true;  // Prevent holding space to rapid fire
+        this.isInvulnerable = false;
+        this.invulnerableTime = 0;
+        this.maxInvulnerableTime = 120;  // 2 seconds at 60fps
     }
 
     shoot() {
@@ -78,6 +81,14 @@ class Ship {
         if (this.x > this.game.canvas.width) this.x = 0;
         if (this.y < 0) this.y = this.game.canvas.height;
         if (this.y > this.game.canvas.height) this.y = 0;
+
+        // Update invulnerability
+        if (this.isInvulnerable) {
+            this.invulnerableTime--;
+            if (this.invulnerableTime <= 0) {
+                this.isInvulnerable = false;
+            }
+        }
     }
 
     render(ctx) {
@@ -85,30 +96,87 @@ class Ship {
         ctx.translate(this.x, this.y);
         ctx.rotate(this.rotation);
 
-        // Draw ship
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(this.size, 0);  // Front of ship
-        ctx.lineTo(-this.size/2, -this.size/2);  // Top rear
-        ctx.lineTo(-this.size/3, 0);  // Notch
-        ctx.lineTo(-this.size/2, this.size/2);  // Bottom rear
-        ctx.lineTo(this.size, 0);  // Back to front
-        ctx.stroke();
-        ctx.closePath();
-
-        // Draw thruster
-        if (this.isThrusting) {
+        // Make ship blink when invulnerable
+        if (!this.isInvulnerable || Math.floor(this.invulnerableTime / 4) % 2) {
+            // Draw ship
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.moveTo(-this.size/3, -this.size/4);  // Top of thruster
-            ctx.lineTo(-this.size * 1.2, 0);  // Tip of flame
-            ctx.lineTo(-this.size/3, this.size/4);  // Bottom of thruster
-            ctx.strokeStyle = '#fff';  // Changed to white
+            ctx.moveTo(this.size, 0);  // Front of ship
+            ctx.lineTo(-this.size/2, -this.size/2);  // Top rear
+            ctx.lineTo(-this.size/3, 0);  // Notch
+            ctx.lineTo(-this.size/2, this.size/2);  // Bottom rear
+            ctx.lineTo(this.size, 0);  // Back to front
             ctx.stroke();
             ctx.closePath();
+
+            // Draw thruster
+            if (this.isThrusting) {
+                ctx.beginPath();
+                ctx.moveTo(-this.size/3, -this.size/4);  // Top of thruster
+                ctx.lineTo(-this.size * 1.2, 0);  // Tip of flame
+                ctx.lineTo(-this.size/3, this.size/4);  // Bottom of thruster
+                ctx.strokeStyle = '#fff';  // Changed to white
+                ctx.stroke();
+                ctx.closePath();
+            }
         }
 
         ctx.restore();
+    }
+
+    getVertices() {
+        const vertices = [
+            { x: this.size, y: 0 },  // Nose
+            { x: -this.size/2, y: -this.size/2 },  // Left wing
+            { x: -this.size/3, y: 0 },  // Notch
+            { x: -this.size/2, y: this.size/2 }  // Right wing
+        ];
+
+        // Transform vertices based on ship's position and rotation
+        return vertices.map(v => {
+            const rotatedX = v.x * Math.cos(this.rotation) - v.y * Math.sin(this.rotation);
+            const rotatedY = v.x * Math.sin(this.rotation) + v.y * Math.cos(this.rotation);
+            return {
+                x: rotatedX + this.x,
+                y: rotatedY + this.y
+            };
+        });
+    }
+
+    checkCollision(asteroid) {
+        if (this.isInvulnerable) return false;
+
+        const shipVertices = this.getVertices();
+        
+        // Check if any ship vertex is inside the asteroid
+        for (const vertex of shipVertices) {
+            if (asteroid.containsPoint(vertex)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    destroy() {
+        this.lives--;
+        if (this.lives > 0) {
+            this.respawn();
+        }
+    }
+
+    respawn() {
+        // Reset position to center
+        this.x = this.game.canvas.width / 2;
+        this.y = this.game.canvas.height / 2;
+        
+        // Reset movement
+        this.velocity = { x: 0, y: 0 };
+        this.rotation = 0;
+        
+        // Make invulnerable
+        this.isInvulnerable = true;
+        this.invulnerableTime = this.maxInvulnerableTime;
     }
 }
 
@@ -287,6 +355,7 @@ class Game {
 
         // Create ship
         this.ship = new Ship(this, this.canvas.width / 2, this.canvas.height / 2);
+        this.ship.lives = 3;
         this.entities.push(this.ship);
 
         // Create initial asteroids
@@ -368,6 +437,18 @@ class Game {
             });
         });
 
+        // Ship-asteroid collisions
+        asteroids.forEach(asteroid => {
+            if (this.ship.checkCollision(asteroid)) {
+                this.ship.destroy();
+                if (this.ship.lives <= 0) {
+                    // Game Over logic here
+                    console.log('Game Over!');
+                    this.reset();  // Optional: auto-reset the game
+                }
+            }
+        });
+
         // Then remove dead bullets
         this.entities = this.entities.filter(entity => {
             if (entity instanceof Bullet) {
@@ -387,7 +468,7 @@ class Game {
         
         // Update score and lives display
         document.getElementById('score').textContent = `Score: ${this.score}`;
-        document.getElementById('lives').textContent = `Lives: ${this.lives}`;
+        document.getElementById('lives').textContent = `Lives: ${this.ship.lives}`;
     }
 
     gameLoop(timestamp) {
@@ -399,6 +480,20 @@ class Game {
         this.render();
 
         requestAnimationFrame(this.gameLoop.bind(this));
+    }
+
+    reset() {
+        // Reset game state
+        this.entities = [];
+        this.score = 0;
+        
+        // Create new ship
+        this.ship = new Ship(this, this.canvas.width / 2, this.canvas.height / 2);
+        this.ship.lives = 3;
+        this.entities.push(this.ship);
+        
+        // Create new asteroids
+        this.createAsteroids(4);
     }
 }
 
