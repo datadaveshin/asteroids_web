@@ -156,6 +156,72 @@ class Bullet {
     }
 }
 
+class Asteroid {
+    constructor(game, x, y, size = 40) {
+        this.game = game;
+        this.x = x;
+        this.y = y;
+        this.size = size;
+        this.rotation = 0;
+        this.rotationSpeed = (Math.random() - 0.5) * 0.02;  // Random rotation
+        
+        // Random velocity
+        const speed = 1 + Math.random() * 2;
+        const angle = Math.random() * Math.PI * 2;
+        this.velocity = {
+            x: Math.cos(angle) * speed,
+            y: Math.sin(angle) * speed
+        };
+
+        // Create irregular shape
+        this.vertices = [];
+        const vertices = 10;  // Number of vertices
+        for (let i = 0; i < vertices; i++) {
+            const angle = (i / vertices) * Math.PI * 2;
+            const variance = 0.5;  // How irregular the shape is
+            const radius = this.size * (1 + (Math.random() - 0.5) * variance);
+            this.vertices.push({
+                x: Math.cos(angle) * radius,
+                y: Math.sin(angle) * radius
+            });
+        }
+    }
+
+    update() {
+        // Rotate
+        this.rotation += this.rotationSpeed;
+
+        // Move
+        this.x += this.velocity.x;
+        this.y += this.velocity.y;
+
+        // Wrap around screen
+        if (this.x < -this.size) this.x = this.game.canvas.width + this.size;
+        if (this.x > this.game.canvas.width + this.size) this.x = -this.size;
+        if (this.y < -this.size) this.y = this.game.canvas.height + this.size;
+        if (this.y > this.game.canvas.height + this.size) this.y = -this.size;
+    }
+
+    render(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+        
+        // Draw asteroid
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(this.vertices[0].x, this.vertices[0].y);
+        for (let i = 1; i < this.vertices.length; i++) {
+            ctx.lineTo(this.vertices[i].x, this.vertices[i].y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+        
+        ctx.restore();
+    }
+}
+
 class Game {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
@@ -174,6 +240,9 @@ class Game {
         // Create ship
         this.ship = new Ship(this, this.canvas.width / 2, this.canvas.height / 2);
         this.entities.push(this.ship);
+
+        // Create initial asteroids
+        this.createAsteroids(4);  // Start with 4 asteroids
 
         // Bind event listeners
         this.bindEvents();
@@ -199,6 +268,20 @@ class Game {
         });
     }
 
+    createAsteroids(count) {
+        for (let i = 0; i < count; i++) {
+            // Create asteroids away from the ship
+            let x, y;
+            do {
+                x = Math.random() * this.canvas.width;
+                y = Math.random() * this.canvas.height;
+            } while (Math.hypot(x - this.ship.x, y - this.ship.y) < 200);  // Keep asteroids away from ship
+
+            const asteroid = new Asteroid(this, x, y);
+            this.entities.push(asteroid);
+        }
+    }
+
     update(deltaTime) {
         // First update all entities
         this.entities.forEach(entity => {
@@ -207,6 +290,8 @@ class Game {
                 if (!alive) {
                     console.log('Bullet died');  // Debug
                 }
+            } else if (entity instanceof Asteroid) {
+                entity.update();
             } else {
                 entity.update(deltaTime);
             }
