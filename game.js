@@ -411,23 +411,17 @@ class Game {
         this.lives = 3;
 
         // Set canvas size
-        this.canvas.width = 1280;
-        this.canvas.height = 960;
+        this.canvas.width = 960;
+        this.canvas.height = 720;
 
         // Game state
         this.entities = [];
         this.keys = {};
+        this.gameState = 'splash'; // 'splash', 'playing', 'gameover'
+        this.highScore = 0;
 
         // Create particle system
         this.particleSystem = new ParticleSystem();
-
-        // Create ship
-        this.ship = new Ship(this, this.canvas.width / 2, this.canvas.height / 2);
-        this.ship.lives = 3;
-        this.entities.push(this.ship);
-
-        // Create initial asteroids
-        this.createAsteroids(4);  // Start with 4 asteroids
 
         // Bind event listeners
         this.bindEvents();
@@ -441,8 +435,15 @@ class Game {
         // Keyboard controls
         window.addEventListener('keydown', (e) => {
             this.keys[e.key] = true;
-            if (e.key === ' ') {
-                console.log('Space pressed');  // Debug log
+            
+            // Start game on any key from splash screen
+            if (this.gameState === 'splash' && e.key !== ' ') {
+                this.startGame();
+            }
+            
+            // Restart game on Enter from game over screen
+            if (this.gameState === 'gameover' && e.key === 'Enter') {
+                this.startGame();
             }
         });
         window.addEventListener('keyup', (e) => {
@@ -451,6 +452,29 @@ class Game {
                 console.log('Space released');  // Debug log
             }
         });
+    }
+
+    startGame() {
+        this.gameState = 'playing';
+        this.score = 0;
+        this.entities = [];
+        
+        // Create ship
+        this.ship = new Ship(this, this.canvas.width / 2, this.canvas.height / 2);
+        this.ship.lives = 3;
+        this.entities.push(this.ship);
+        
+        // Create asteroids
+        this.createAsteroids(4);
+    }
+
+    gameOver() {
+        this.gameState = 'gameover';
+        if (this.score > this.highScore) {
+            this.highScore = this.score;
+        }
+        // Update lives display to show 0
+        document.getElementById('lives').textContent = 'Lives: 0';
     }
 
     createAsteroids(count) {
@@ -468,6 +492,8 @@ class Game {
     }
 
     update(deltaTime) {
+        if (this.gameState !== 'playing') return;
+
         // First update all entities
         this.entities.forEach(entity => {
             if (entity instanceof Bullet) {
@@ -510,12 +536,13 @@ class Game {
 
         // Ship-asteroid collisions
         asteroids.forEach(asteroid => {
-            if (this.ship.checkCollision(asteroid)) {
+            if (this.ship.checkCollision(asteroid) && this.ship.lives > 0) {  // Only check collision if ship has lives
                 this.ship.destroy();
                 if (this.ship.lives <= 0) {
-                    // Game Over logic here
-                    console.log('Game Over!');
-                    this.reset();  // Optional: auto-reset the game
+                    // Wait for explosion animation before game over
+                    setTimeout(() => {
+                        this.gameOver();
+                    }, 1000);  // 1 second delay
                 }
             }
         });
@@ -534,15 +561,45 @@ class Game {
         this.ctx.fillStyle = '#000';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Render all entities
-        this.entities.forEach(entity => entity.render(this.ctx));
-        
-        // Render particle system
-        this.particleSystem.render(this.ctx);
-
-        // Update score and lives display
-        document.getElementById('score').textContent = `Score: ${this.score}`;
-        document.getElementById('lives').textContent = `Lives: ${this.ship.lives}`;
+        if (this.gameState === 'splash') {
+            // Render splash screen
+            this.ctx.save();
+            this.ctx.fillStyle = '#fff';
+            this.ctx.font = '64px "Press Start 2P", monospace';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('ASTEROIDS', this.canvas.width / 2, this.canvas.height / 3);
+            
+            this.ctx.font = '24px "Press Start 2P", monospace';
+            this.ctx.fillText('Press Any Key to Start', this.canvas.width / 2, this.canvas.height * 2/3);
+            
+            this.ctx.font = '16px "Press Start 2P", monospace';
+            this.ctx.fillText('Arrow Keys to Move    Space to Shoot', this.canvas.width / 2, this.canvas.height * 3/4);
+            this.ctx.restore();
+            
+        } else if (this.gameState === 'playing') {
+            // Render game
+            this.entities.forEach(entity => entity.render(this.ctx));
+            this.particleSystem.render(this.ctx);
+            
+            // Update score and lives display
+            document.getElementById('score').textContent = `Score: ${this.score}`;
+            document.getElementById('lives').textContent = `Lives: ${this.ship.lives}`;
+            
+        } else if (this.gameState === 'gameover') {
+            // Render game over screen
+            this.ctx.save();
+            this.ctx.fillStyle = '#fff';
+            this.ctx.font = '64px "Press Start 2P", monospace';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('GAME OVER', this.canvas.width / 2, this.canvas.height / 3);
+            
+            this.ctx.font = '24px "Press Start 2P", monospace';
+            this.ctx.fillText(`Score: ${this.score}`, this.canvas.width / 2, this.canvas.height / 2);
+            this.ctx.fillText(`High Score: ${this.highScore}`, this.canvas.width / 2, this.canvas.height / 2 + 40);
+            
+            this.ctx.fillText('Press Enter to Restart', this.canvas.width / 2, this.canvas.height * 3/4);
+            this.ctx.restore();
+        }
     }
 
     gameLoop(timestamp) {
@@ -557,20 +614,10 @@ class Game {
     }
 
     reset() {
-        // Reset game state
-        this.entities = [];
+        this.gameState = 'splash';
         this.score = 0;
-        
-        // Reset particle system
+        this.entities = [];
         this.particleSystem = new ParticleSystem();
-        
-        // Create new ship
-        this.ship = new Ship(this, this.canvas.width / 2, this.canvas.height / 2);
-        this.ship.lives = 3;
-        this.entities.push(this.ship);
-        
-        // Create new asteroids
-        this.createAsteroids(4);
     }
 }
 
