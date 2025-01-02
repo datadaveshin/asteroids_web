@@ -20,21 +20,24 @@ class Ship {
 
     shoot() {
         if (this.bulletsRemaining > 0 && this.canShoot && this.game.keys[' ']) {
-            console.log('Ship position at shot:', this.x, this.y, 'rotation:', this.rotation);  // Debug
-            console.log('Shooting bullet!');  // Debug log
+            // Create bullet
             const bullet = new Bullet(
                 this.game,
                 this.x + Math.cos(this.rotation) * this.size,
                 this.y + Math.sin(this.rotation) * this.size,
                 this.rotation
             );
-            console.log('Bullet created at:', bullet.x, bullet.y);  // Debug log
             this.game.entities.push(bullet);
-            console.log('Total entities:', this.game.entities.length);  // Debug log
             this.bulletsRemaining--;
-            this.canShoot = false;  // Prevent next shot until space is released
+            this.canShoot = false;
+
+            // Play shoot sound
+            this.game.audioManager.playShootSound();
+
+            console.log('Bullet created at:', bullet.x, bullet.y);  // Debug log
+            console.log('Total entities:', this.game.entities.length);  // Debug log
         }
-        
+
         // Reset shooting ability when space is released
         if (!this.game.keys[' ']) {
             this.canShoot = true;
@@ -403,6 +406,28 @@ class ParticleSystem {
     }
 }
 
+class AudioManager {
+    constructor() {
+        this.shootSound = new Audio('zapsplat_multimedia_game_sound_retro_arcade_lo_fi_sci_fi_laser_zap_001_107604.mp3');
+        this.isMuted = false;
+    }
+
+    playShootSound() {
+        if (this.isMuted) return;
+        
+        // Reset sound to start
+        this.shootSound.currentTime = 0;
+        this.shootSound.play().catch(error => {
+            console.log('Error playing shoot sound:', error);
+        });
+    }
+
+    toggleMute() {
+        this.isMuted = !this.isMuted;
+        return this.isMuted;
+    }
+}
+
 class Game {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
@@ -419,9 +444,13 @@ class Game {
         this.keys = {};
         this.gameState = 'splash'; // 'splash', 'playing', 'gameover'
         this.highScore = 0;
+        this.lastLifeAwardScore = 0;
 
         // Create particle system
         this.particleSystem = new ParticleSystem();
+
+        // Initialize audio manager
+        this.audioManager = new AudioManager();
 
         // Bind event listeners
         this.bindEvents();
@@ -445,12 +474,16 @@ class Game {
             if (this.gameState === 'gameover' && e.key === 'Enter') {
                 this.startGame();
             }
+
+            // Mute/unmute with 'm' key
+            if (e.key === 'm' || e.key === 'M') {
+                const isMuted = this.audioManager.toggleMute();
+                console.log(isMuted ? 'Sound Muted' : 'Sound Unmuted');
+            }
         });
+
         window.addEventListener('keyup', (e) => {
             this.keys[e.key] = false;
-            if (e.key === ' ') {
-                console.log('Space released');  // Debug log
-            }
         });
     }
 
