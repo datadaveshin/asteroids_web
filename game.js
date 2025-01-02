@@ -414,7 +414,7 @@ class AudioManager {
 
     playShootSound() {
         if (this.isMuted) return;
-        
+
         // Reset sound to start
         this.shootSound.currentTime = 0;
         this.shootSound.play().catch(error => {
