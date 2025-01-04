@@ -408,7 +408,8 @@ class ParticleSystem {
 
 class AudioManager {
     constructor() {
-        this.shootSound = new Audio('zapsplat_multimedia_game_sound_retro_arcade_lo_fi_sci_fi_laser_zap_001_107604.mp3');
+        this.shootSound = new Audio('assets/zapsplat_multimedia_game_sound_retro_arcade_lo_fi_sci_fi_laser_zap_001_107604.mp3');
+        this.asteroidShotSound = new Audio('assets/esm_8bit_explosion_medium_bomb_boom_blast_cannon_retro_old_school_classic_cartoon.mp3');
         this.isMuted = false;
     }
 
@@ -419,6 +420,16 @@ class AudioManager {
         this.shootSound.currentTime = 0;
         this.shootSound.play().catch(error => {
             console.log('Error playing shoot sound:', error);
+        });
+    }
+
+    playAsteroidShotSound() {
+        if (this.isMuted) return;
+
+        // Reset sound to start
+        this.asteroidShotSound.currentTime = 0;
+        this.asteroidShotSound.play().catch(error => {
+            console.log('Error playing asteroid shot sound:', error);
         });
     }
 
@@ -551,6 +562,9 @@ class Game {
         bullets.forEach(bullet => {
             asteroids.forEach(asteroid => {
                 if (asteroid.containsPoint(bullet)) {
+                    // Play asteroid shot sound
+                    this.audioManager.playAsteroidShotSound();
+
                     // Remove the bullet
                     this.entities = this.entities.filter(e => e !== bullet);
                     
