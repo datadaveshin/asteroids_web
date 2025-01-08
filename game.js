@@ -621,6 +621,9 @@ class Game {
             
             this.ctx.font = '16px "Press Start 2P", monospace';
             this.ctx.fillText('Arrow Keys to Move    Space to Shoot', this.canvas.width / 2, this.canvas.height * 3/4);
+
+            this.ctx.font = '12px "Press Start 2P", monospace';
+            this.ctx.fillText('Sound effects from Zapsplat.com', this.canvas.width / 2, this.canvas.height - 10);
             this.ctx.restore();
             
         } else if (this.gameState === 'playing') {
@@ -645,6 +648,9 @@ class Game {
             this.ctx.fillText(`High Score: ${this.highScore}`, this.canvas.width / 2, this.canvas.height / 2 + 40);
             
             this.ctx.fillText('Press Enter to Restart', this.canvas.width / 2, this.canvas.height * 3/4);
+
+            this.ctx.font = '12px "Press Start 2P", monospace';
+            this.ctx.fillText('Sound effects from Zapsplat.com', this.canvas.width / 2, this.canvas.height - 10);
             this.ctx.restore();
         }
     }
